@@ -1,0 +1,11 @@
+node_modules/ 
+dist/
+dist-ssr/
+.env
+
+# Large files
+*.traineddata
+
+# Local storage
+uploads/
+exports/
