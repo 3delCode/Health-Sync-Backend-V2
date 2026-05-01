@@ -97,6 +97,9 @@ const startServer = async () => {
     });
 };
 
-startServer();
+// Only start server if run directly (not required as a module)
+if (require.main === module) {
+    startServer();
+}
 
-module.exports = { server, io };
+module.exports = app;
