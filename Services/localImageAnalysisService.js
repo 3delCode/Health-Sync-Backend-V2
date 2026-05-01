@@ -8,10 +8,9 @@
 const Tesseract = require('tesseract.js');
 let tf = null;
 try {
-  tf = require('@tensorflow/tfjs-node');
+  tf = require('@tensorflow/tfjs');
 } catch (err) {
-  console.warn('⚠️  TensorFlow.js native binding blocked by Windows security policy. Image feature extraction will be limited.');
-  console.warn('   To enable full TensorFlow.js support, add an exception in Windows Security > App & browser control > Exploit protection settings');
+  console.warn('⚠️  TensorFlow.js failed to load. Image feature extraction will be limited.');
 }
 const sharp = require('sharp');
 const pdfParse = require('pdf-parse');
@@ -49,16 +48,22 @@ async function extractTextFromImage(imageBuffer) {
  * @returns {Promise<{mean: number, std: number, min: number, max: number, shape: number[]}>}
  */
 async function extractFeaturesWithTF(imageBuffer) {
-  // If TensorFlow.js is not available (blocked by Windows security), return fallback values
+  // If TensorFlow.js is not available, return fallback values
   if (!tf) {
     return { mean: 0.5, std: 0.1, min: 0, max: 1, shape: [224, 224, 3] };
   }
 
   try {
-    // Decode image to tensor (resize to 224x224 for consistency)
-    const tensor = tf.node.decodeImage(imageBuffer, 3); // force 3 channels (RGB)
-    const resized = tf.image.resizeBilinear(tensor, [224, 224]);
-    const normalized = resized.div(255.0);
+    // Note: tfjs (pure) doesn't have tf.node.decodeImage. 
+    // We use sharp to get raw pixels first which is more reliable on Vercel.
+    const { data, info } = await sharp(imageBuffer)
+      .resize(224, 224)
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const tensor = tf.tensor3d(new Uint8Array(data), [info.height, info.width, 3]);
+    const normalized = tensor.div(255.0);
 
     const [mean, variance] = tf.moments(normalized);
     const minVal = normalized.min();
@@ -73,7 +78,6 @@ async function extractFeaturesWithTF(imageBuffer) {
 
     // Clean up tensors
     tensor.dispose();
-    resized.dispose();
     normalized.dispose();
     mean.dispose();
     variance.dispose();
