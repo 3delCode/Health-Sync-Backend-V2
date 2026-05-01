@@ -29,6 +29,9 @@ const { checkOllamaHealth } = require('./Utils/ollamaClient');
 
 const app = express();
 
+// Trust proxy for rate limiting (needed for Vercel/proxies)
+app.set('trust proxy', 1);
+
 // =====================================================
 // ✅ Initialize Services on Startup
 // =====================================================
